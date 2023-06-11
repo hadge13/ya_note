@@ -25,6 +25,7 @@ class TestRoutes(TestCase):
             author=cls.author,)
   
     # Все страницы доступны неавторизованному пользователю
+    
     def test_pages_availability(self):           
         urls = (
             ('notes:home', None),       # Главная страница
@@ -34,22 +35,31 @@ class TestRoutes(TestCase):
         )
         for name, args in urls:
             with self.subTest(name=name):
-            # Передаём имя и позиционный аргумент в reverse()
-            # и получаем адрес страницы для GET-запроса:
                 url = reverse(name, args=args)
                 response = self.client.get(url)    # неавторизованный пользователь
                 self.assertEqual(response.status_code, HTTPStatus.OK) 
 
 
-    # При попытке попасть на страницу создания заметки
+    # При попытке попасть на страницу списка заметок, страницу успешного создания заметки, 
+    # страницу добавления заметки, редактирования или удаления
     # неавторизованный пользователь перенаправляется на страницу логина
-    def test_add_note(self):
+    def test_list_add_done_edit_delete_note(self):
         login_url = reverse('users:login')
-        url = reverse('notes:add', None)  
+        urls = (
+            ('notes:list', None),       # Cтраница заметок
+            ('notes:add', None),      #  Страница добавления заметки
+            ('notes:success', None),     # Страница успеха
+            ('notes:edit', (self.note.slug,)), # Страниц редактирования
+            ('notes:delete', (self.note.slug,)), # Страниц редактирования
+        )
+        for name, args in urls:
+            with self.subTest(name=name):
+                url = reverse(name, args=args)
+                response = self.client.get(url)    # неавторизованный пользователь
         redirect_url = f'{login_url}?next={url}'  
         response = self.client.get(url)
         self.assertRedirects(response, redirect_url) 
-
+  
 
     # Страницы отдельной заметки,  удаления и редактирования заметки доступны автору заметки.
     # но недоступны другим польzователям
@@ -68,3 +78,19 @@ class TestRoutes(TestCase):
                     url = reverse(name, args=(self.note.slug,))
                     response = self.client.get(url)
                     self.assertEqual(response.status_code, status)
+
+    # Страницы списка заметок, добавления и успеха доступны 
+    # аутентифицированному пользователю
+    def test_list_add_done_note(self):
+        urls = (
+            ('notes:list', None),       # Cтраница заметок
+            ('notes:add', None),      #  Страница добавления заметки
+            ('notes:success', None),     # Страница успеха
+        )
+        for name, args in urls:
+            self.client.force_login(self.author)
+            with self.subTest(name=name):
+                url = reverse(name, args=args)
+                response = self.client.get(url)    
+                self.assertEqual(response.status_code, HTTPStatus.OK)        
+        
